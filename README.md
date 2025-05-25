@@ -17,4 +17,4 @@
 - Validated my revised code against the (quadratic) statsmodels implementation using Jordi's data
   - RMSE was 1.03e-4
 - Posted the revised code on Github ([link to repo](https://github.com/hmustafamail/MedcoupleNLogN))
-- Opened an issue to discuss on the Statsmodels Github page [link to issue](https://github.com/statsmodels/statsmodels/issues/9570)
+- Opened an issue to discuss on the Statsmodels Github page ([link to issue](https://github.com/statsmodels/statsmodels/issues/9570))
