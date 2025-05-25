@@ -2,8 +2,7 @@
 # 
 # Validated against Statsmodels implementation (N^2 time)
 # 
-# Authors: Jordi Gutiérrez Hermoso (2015), Mustafa I. Hussain (2025)
-# License: GNU-GPL
+# Authors: Guy Brys (c. 2004), Jordi Gutiérrez Hermoso (c. 2015), Mustafa I. Hussain (2025)
 
 import numpy as np
 import warnings
