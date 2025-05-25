@@ -11,7 +11,8 @@
 
 ## What I did
 - Reached out to Guy on LinkedIn ([link to profile](https://www.linkedin.com/in/guy-brys-412a8a65/)) to ask for permission
-  - He granted permission (see `permission from guy brys.png` in my repo, linked below)
+  - He granted permission
+  - [link to permission from guy brys.png](https://github.com/hmustafamail/MedcoupleNLogN/blob/main/permission%20from%20guy%20brys.png) in my repo
 - Revised Jordi's code for Python 3
 - Validated my revised code against the (quadratic) statsmodels implementation using Jordi's data
   - RMSE was 1.03e-4
