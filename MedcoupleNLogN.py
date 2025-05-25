@@ -1,8 +1,15 @@
-# Medcouple robust measure of skewness in N*log(N) time for Python 3.12
-# 
-# Validated against Statsmodels implementation (N^2 time)
-# 
-# Authors: Guy Brys (c. 2004), Jordi Gutiérrez Hermoso (c. 2015), Mustafa I. Hussain (2025)
+"""
+Support and standalone functions for Medcouple robust measure of skewness in N*log(N) time for Python 3.12
+
+Validated against Statsmodels implementation (N^2 time)
+
+Authors: Guy Brys (c. 2004), Jordi Gutiérrez Hermoso (c. 2015), Mustafa I. Hussain (2025)
+
+References
+----------
+
+Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure of Skewness; JCGS 13 (4), 996-1017. 
+"""
 
 import numpy as np
 import warnings
@@ -38,7 +45,7 @@ def wmedian(A: List[float], W: List[int]) -> float:
 
 def medcouple_nlogn(X: np.ndarray, eps1: float = 2**-52, eps2: float = 2**-1022) -> float:
     """
-    Calculates the medcouple robust measure of skewness.
+    Calculates the medcouple robust measure of skewness. The implementation follows the algorithm described by Brys, Hubert, and Struyf (2004).
 
     Parameters
     ----------
