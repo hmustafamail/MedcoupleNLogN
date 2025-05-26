@@ -158,12 +158,16 @@ def _medcouple_nlogn(X, eps1 = 2**-52, eps2 = 2**-1022):
     Notes
     -----
 
+    NaNs are not automatically removed. If present in the input, the result
+    will be NaN.
+
     .. [*] Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure 
        of Skewness; JCGS 13 (4), 996-1017. 
     """
 
-    # Remove NaNs
-    X = X[~np.isnan(X)]
+    if np.any(np.isnan(X)):
+        return np.nan
+
     n = len(X)
 
     if n < 3:
@@ -300,8 +304,8 @@ def medcouple(y, axis=0, use_fast=True):
 
     Small numerical differences are possible based on the choice of algorithm.
 
-    The fast version removes NaNs. To preserve legacy behavior, NaNs may 
-    propagate when use_fast=False.
+    NaNs are not automatically removed. If present in the input, the result
+    will be NaN.
 
     .. [*] Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure 
        of Skewness; JCGS 13 (4), 996-1017. 
