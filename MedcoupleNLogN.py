@@ -16,9 +16,10 @@ from statsmodels.tools.sm_exceptions import ValueWarning
 from itertools import tee
 
 
+
 def _medcouple_1d_legacy(y):
     """
-    Calculates the medcouple robust measure of skew. Less efficient version of the algorithm which computes in O(N**2) time. Here to validate the results of the N log N version.
+    Calculates the medcouple robust measure of skew. Less efficient version of the algorithm which computes in O(N**2) time. Mainly useful for validating the N log N version.
 
     Parameters
     ----------
@@ -172,8 +173,16 @@ def _medcouple_nlogn(X, eps1 = 2**-52, eps2 = 2**-1022):
 
     if n < 3:
         from warnings import warn
-        warn("medcouple is undefined for input with less than 3 elements.", ValueWarning)
+        warn("medcouple is undefined for input with less than 3 elements. Returning NaN.", ValueWarning)
         return np.nan
+    
+    if n < 10:
+        from warnings import warn
+        warn(
+            "Fast medcouple algorithm (use_fast=True) is not recommended for small datasets (N < 10). "
+            "Results may be unstable. Consider using use_fast=False for accuracy.",
+            RuntimeWarning
+        )
 
     Z = np.sort(X)[::-1]
     n2 = (n - 1) // 2
@@ -299,13 +308,26 @@ def medcouple(y, axis=0, use_fast=True):
 
     Notes
     -----
-    The legacy algorithm (use_fast=False) requires a O(N**2) memory
-    allocations, and so may not work for very large arrays (N>10000).
+    The legacy algorithm (``use_fast=False``) uses an O(N**2) implementation 
+    which provides exact results and is reliable for all dataset sizes, 
+    including small inputs and cases with ties. However, it requires a O(N**2)
+    memory allocations, and so may not work for very large arrays (N>10000).
 
+    The fast algorithm (``use_fast=True``) implements an O(N log N) 
+    approximation which is optimized for large datasets. **It is not intended 
+    for small sample sizes (N < 10)** or datasets with a high proportion of 
+    ties, as it may yield numerically unstable or inaccurate results in these
+    cases. For such inputs, prefer ``use_fast=False`` to ensure correctness.
+
+    If NaNs are present in the input when use_fast=True, the result will be
+    NaN. To preserve legacy behavior, a number may be returned when 
+    use_fast=False.
+
+    If the size of ``y`` is less than 3 and ``use_fast=True``, the result will
+    be NaN. To preserve legacy behavior, a value may be returned when 
+    ``use_fast=False``.
+    
     Small numerical differences are possible based on the choice of algorithm.
-
-    NaNs are not automatically removed. If present in the input, the result
-    will be NaN.
 
     .. [*] Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure 
        of Skewness; JCGS 13 (4), 996-1017. 
