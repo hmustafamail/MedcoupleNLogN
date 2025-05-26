@@ -2,8 +2,7 @@ import os
 import time
 import csv
 import numpy as np
-from statsmodels.stats.stattools import medcouple as sm_medcouple
-from MedcoupleNLogN import medcouple_nlogn
+from MedcoupleNLogN import medcouple
 
 DATA_DIR = "data"
 OUTPUT_CSV = "medcouple_comparison.csv"
@@ -21,11 +20,11 @@ for fname in os.listdir(DATA_DIR):
             continue
 
         start = time.perf_counter()
-        my_mc = medcouple_nlogn(data)
+        my_mc = medcouple(data, use_fast=True)
         my_time = time.perf_counter() - start
 
         start = time.perf_counter()
-        sm_mc = sm_medcouple(data)
+        sm_mc = medcouple(data, use_fast=False)
         sm_time = time.perf_counter() - start
 
         results.append({
