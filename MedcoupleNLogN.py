@@ -13,7 +13,6 @@ Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure of Skewness; JCGS 1
 
 import numpy as np
 from statsmodels.tools.sm_exceptions import ValueWarning
-import pdb
 
 
 def _medcouple_1d_legacy(y):
@@ -301,7 +300,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     if np.any(np.isnan(X)):
         return np.nan
 
-    n = len(X)
+    n = X.shape[0]
 
     if n < 3:
         from warnings import warn
@@ -373,7 +372,8 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
             i = n_plus - 1 - idx
 
             # Increase j until the condition is no longer met.
-            while j < n_minus and _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med > Am_eps:
+            while j < n_minus and \
+                _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med > Am_eps:
                 j += 1
 
             # j-1 is our current value for that i.
@@ -386,7 +386,8 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
         # Construct Q.
         j = n_minus - 1
         for i in range(n_plus):
-            while j >= 0 and _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med < -Am_eps:
+            while j >= 0 and \
+                _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med < -Am_eps:
                 j -= 1
             Q[i] = j + 1
 
@@ -413,8 +414,8 @@ def _medcouple_1d(y, use_fast=True):
 
     Parameters
     ----------
-    y : array_like, 1-d
-        Data to compute use in the estimator.
+    y : np.ndarray
+        1-d data to compute use in the estimator.
     use_fast : bool
         Whether to use the O(n log n) implementation. Defaults to True.
 
@@ -423,7 +424,7 @@ def _medcouple_1d(y, use_fast=True):
     mc : float
         The medcouple statistic
     """
-    y = np.squeeze(np.asarray(y))
+    y = np.squeeze(y)
     if y.ndim != 1:
         raise ValueError("y must be squeezable to a 1-d array")
 
