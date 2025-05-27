@@ -13,8 +13,6 @@ Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure of Skewness; JCGS 1
 
 import numpy as np
 from statsmodels.tools.sm_exceptions import ValueWarning
-from itertools import tee
-
 
 
 def _medcouple_1d_legacy(y):
@@ -69,12 +67,15 @@ def _medcouple_1d_legacy(y):
     # GH5395
     num_ties = np.sum(lower == 0.0)
     if num_ties:
+
         # Replacements has -1 above the anti-diagonal, 0 on the anti-diagonal,
         # and 1 below the anti-diagonal
         replacements = np.ones((num_ties, num_ties)) - np.eye(num_ties)
         replacements -= 2 * np.triu(replacements)
+
         # Convert diagonal to anti-diagonal
         replacements = np.fliplr(replacements)
+
         # Always replace upper right block
         h[:num_ties, -num_ties:] = replacements
 
@@ -100,7 +101,7 @@ def _signum(x):
     This function is used in the fast medcouple implementation to
     handle tie-breaking when two values are numerically close.
     """
-    return (x > 0) - (x < 0)
+    return int(x > 0) - int(x < 0)
 
 
 def _wmedian(A, W):
@@ -109,9 +110,9 @@ def _wmedian(A, W):
 
     Parameters
     ----------
-    A : list of float
-        The list of numeric values for which the weighted median is to be computed.
-    W : list of int
+    A : 1-d NumPy array of float
+        The numeric values for which the weighted median is to be computed.
+    W : 1-d NumPy array of int
         The corresponding non-negative integer weights for each value in A.
 
     Returns
@@ -124,24 +125,67 @@ def _wmedian(A, W):
     -----
     This is a helper function for the O(N log N) medcouple algorithm.
     """
-    AW = sorted(zip(A, W), key=lambda x: x[0])
-    wtot = sum(W)
-    beg = 0
-    end = len(AW) - 1
 
-    while True:
-        mid = (beg + end) // 2
-        trial = AW[mid][0]
+    # Validation: NaN protection
+    if np.any(np.isnan(A)) or np.any(np.isnan(W)):
+        raise ValueError("A and W may not contain NaN.")
 
-        wleft = sum(w for a, w in AW if a < trial)
-        wright = sum(w for a, w in AW if a >= trial)
+    A = np.asarray(A)
+    W = np.asarray(W)
 
-        if 2 * wleft > wtot:
-            end = mid
-        elif 2 * wright < wtot:
-            beg = mid
-        else:
-            return trial
+    # Ensure 1D arrays
+    if A.ndim != 1 or W.ndim != 1:
+        raise ValueError("A and W must be 1-dimensional arrays.")
+
+    if len(A) != len(W):
+        raise ValueError("A and W must have the same length.")
+
+    # Sort A and W according to A
+    idx = np.argsort(A)
+    A_sorted = A[idx]
+    W_sorted = W[idx]
+
+    # Compute cumulative sum of weights
+    w_cumsum = np.cumsum(W_sorted)
+    wtot = w_cumsum[-1]
+
+    # Find the smallest index i such that cumulative weight >= total weight / 2
+    median_idx = np.searchsorted(w_cumsum, wtot / 2, side="left")
+
+    return A_sorted[median_idx]
+
+
+def construct_A_W(L, R, h_kern):
+    """
+    Vectorized construction of A and W as NumPy arrays.
+
+    Parameters
+    ----------
+    L : list or array of left bounds.
+    R : list or array of right bounds.
+    h_kern : function(i, j) -> float
+
+    Returns
+    -------
+    A : np.ndarray
+        Array of kernel values.
+    W : np.ndarray
+        Corresponding weights.
+    valid_i : np.ndarray
+        Indices used for construction.
+    """
+    L = np.asarray(L)
+    R = np.asarray(R)
+    valid_i = np.where(L <= R)[0]
+    L_valid = L[valid_i]
+    R_valid = R[valid_i]
+    mid_indices = (L_valid + R_valid) // 2
+
+    # Vectorized computation using list comprehension due to h_kern's complexity
+    A = np.fromiter((h_kern(i, j) for i, j in zip(valid_i, mid_indices)),
+                    dtype=float, count=len(valid_i))
+    W = R_valid - L_valid + 1
+    return A, W, valid_i
 
 
 def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
@@ -226,12 +270,13 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     medc_idx = Rtot // 2
 
     while Rtot - Ltot > n_plus:
-        valid_i = [i for i in range(n_plus) if L[i] <= R[i]]
-        I1, I2 = tee(valid_i)
 
-        A = [h_kern(i, (L[i] + R[i]) // 2) for i in I1]
-        W = [R[i] - L[i] + 1 for i in I2]
+        # Construct NumPy arrays
+        A, W, _ = construct_A_W(L, R, h_kern)
+
+        # Pass NumPy arrays
         h_med = _wmedian(A, W)
+
         Am_eps = eps1 * (eps1 + abs(h_med))
 
         P, Q = [], []
