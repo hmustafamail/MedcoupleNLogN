@@ -131,14 +131,12 @@ def _wmedian(A, W):
     if np.any(np.isnan(A)) or np.any(np.isnan(W)):
         raise ValueError("A and W may not contain NaN.")
 
-    A = np.asarray(A)
-    W = np.asarray(W)
-
     # Ensure 1-d arrays
     if A.ndim != 1 or W.ndim != 1:
         raise ValueError("A and W must be 1-dimensional arrays.")
 
-    if len(A) != len(W):
+    # Ensure same length
+    if A.shape[0] != W.shape[0]:
         raise ValueError("A and W must have the same length.")
 
     # Sort A and W according to A
@@ -365,15 +363,11 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     while Rtot - Ltot > n_plus:
 
         # Construct A, W as NumPy arrays
-        try:
-            A, W, _ = _construct_A_W(L, R, Zplus, Zminus, n_plus, eps2)
-        except Exception as ex:
-            print(ex)
-            pdb.set_trace()
+        A, W, _ = _construct_A_W(L, R, Zplus, Zminus, n_plus, eps2)
 
         h_med = _wmedian(A, W)
 
-        Am_eps = eps1 * (eps1 + abs(h_med))
+        Am_eps = eps1 * (eps1 + np.abs(h_med))
 
         # Preallocate arrays P and Q of length n_plus.
         P = np.empty(n_plus, dtype=int)
@@ -395,7 +389,6 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
             P[idx] = j - 1
 
         # Reverse P to get the correct order.
-        # This creates a new array with reversed elements.
         P = P[::-1]
 
         # Construct Q.
@@ -406,7 +399,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
             Q[i] = j + 1
 
         # Compute sumP and sumQ.
-        sumP = np.sum(P) + len(P)  # len(P) is n_plus.
+        sumP = np.sum(P) + n_plus
         sumQ = np.sum(Q)
 
         if medc_idx <= sumP - 1:
