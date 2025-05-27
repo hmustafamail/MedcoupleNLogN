@@ -19,6 +19,8 @@ for fname in os.listdir(DATA_DIR):
     if N > 55000:
         continue
 
+    print(f"processing {fname}...")
+
     start = time.perf_counter()
     my_mc = medcouple(data, use_fast=True)
     my_time = time.perf_counter() - start

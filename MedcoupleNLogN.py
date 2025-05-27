@@ -13,6 +13,7 @@ Guy Brys, Mia Hubert and Anja Struyf (2004) A Robust Measure of Skewness; JCGS 1
 
 import numpy as np
 from statsmodels.tools.sm_exceptions import ValueWarning
+import pdb
 
 
 def _medcouple_1d_legacy(y):
@@ -133,7 +134,7 @@ def _wmedian(A, W):
     A = np.asarray(A)
     W = np.asarray(W)
 
-    # Ensure 1D arrays
+    # Ensure 1-d arrays
     if A.ndim != 1 or W.ndim != 1:
         raise ValueError("A and W must be 1-dimensional arrays.")
 
@@ -155,15 +156,22 @@ def _wmedian(A, W):
     return A_sorted[median_idx]
 
 
-def _construct_A_W(L, R, h_kern):
+def _construct_A_W(L, R, Zplus, Zminus, n_plus, eps2):
     """
     Vectorized construction of A and W as NumPy arrays.
 
     Parameters
     ----------
-    L : list or array of left bounds.
-    R : list or array of right bounds.
-    h_kern : function(i, j) -> float
+    L : np.ndarray
+        1-d array of left bounds.
+    R : np.ndarray
+        1-d array of right bounds.
+    Zplus : np.ndarray
+        1-d array of input values.
+    Zminus :  np.ndarray
+        1-d array of input values.
+    n_plus : int
+    eps2 : float
 
     Returns
     -------
@@ -174,8 +182,12 @@ def _construct_A_W(L, R, h_kern):
     valid_i : np.ndarray
         Indices used for construction.
     """
-    L = np.asarray(L)
-    R = np.asarray(R)
+    if not isinstance(L, np.ndarray) or not isinstance(R, np.ndarray):
+        raise ValueError("L and R must be np.ndarrays")
+
+    L = np.asarray(L) # TODO: remove
+    R = np.asarray(R) # this too
+
     valid_i = np.where(L <= R)[0]
     L_valid = L[valid_i]
     R_valid = R[valid_i]
@@ -183,37 +195,92 @@ def _construct_A_W(L, R, h_kern):
     
     A = np.empty_like(valid_i, dtype=float)
     for k in range(valid_i.size):
-        A[k] = h_kern(valid_i[k], mid_indices[k])
+        A[k] = _h_kern(valid_i[k], mid_indices[k], Zplus, Zminus, n_plus, eps2)
 
     W = R_valid - L_valid + 1
     return A, W, valid_i
 
 
-def _finalize_h_kernel_sweep(L, R, h_kern):
+def _h_kern(index_plus, index_minus, Zplus, Zminus, n_plus, eps2):
     """
-    Compute the final array A by leveraging NumPy indexing.
+    H kernel function.
 
     Parameters
     ----------
-    L : list of left indices
-    R : list of right indices
-    h_kern : function(i, j) -> float
+    index_plus : int-like
+        Index of Zplus.
+    index_minus : int-like
+        Index of Zminus.
+    Zplus : np.ndarray
+        1-d array of input values.
+    Zminus :  np.ndarray
+        1-d array of input values.
+    n_plus : int
+    eps2 : float
 
     Returns
     -------
-    A : list of float
-        Sorted h_kern values in descending order.
+    float
+    """
+    if not np.isscalar(index_plus) or not np.isscalar(index_minus):
+        raise ValueError("index_plus and index_minus must be ints")
+
+    zp_i = Zplus[index_plus]
+    zm_i = Zminus[index_minus]
+    
+    if abs(zp_i - zm_i) <= 2 * eps2:
+        return _signum(n_plus - 1 - index_plus - index_minus)
+    return (zp_i + zm_i) / (zp_i - zm_i)
+
+
+def _finalize_h_kernel_sweep(L, R, Zplus, Zminus, n_plus, eps2):
+    """
+    Compute the final array A.
+
+    Parameters
+    ----------
+    L : np.ndarray
+        1-d array of left indices.
+    R : np.ndarray
+        1-d array of right indices.
+    Zplus : np.ndarray
+        1-d array of input values.
+    Zminus :  np.ndarray
+        1-d array of input values.
+    n_plus : int
+    eps2 : float
+
+    Returns
+    -------
+    A : numpy.ndarray of float
+        1-d array of sorted h_kern values in descending order.
     """
     L = np.asarray(L)
     R = np.asarray(R)
 
-    A = []
-    for i in range(len(L)):
+    # Determine total number of h_kern values.
+    total_count = int(np.sum(R - L + 1))
+    
+    # Preallocate an array for the results.
+    A = np.empty(total_count, dtype=np.float64)
+    
+    # Position to insert next block of values.
+    pos = 0
+    
+    # Loop over each index_plus element.
+    for i in range(L.shape[0]):
         left = L[i]
         right = R[i]
-        A.extend(h_kern(i, j) for j in range(left, right + 1))
+        
+        # Loop over each corresponding index_minus.
+        for j in range(left, right + 1):
 
-    return sorted(A, reverse=True)
+            # Here both i and j are scalars.
+            A[pos] = _h_kern(i, j, Zplus, Zminus, n_plus, eps2)
+            pos += 1
+
+    # Sort in descending order and return.
+    return np.sort(A)[::-1]
 
 
 def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
@@ -224,7 +291,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     Parameters
     ----------
     X : np.ndarray
-        Input 1D array of numeric values.
+        Input 1-d array of numeric values.
 
     Returns
     -------
@@ -279,48 +346,68 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     Zmed /= Zden
     Zeps = eps1 * (eps1 + np.abs(Zmed))
 
+    # Zplus, Zminus are 1-d np.ndarrays
     Zplus = Z[Z >= -Zeps]
     Zminus = Z[Z <= Zeps]
-    n_plus = len(Zplus)
-    n_minus = len(Zminus)
 
-    def h_kern(i: int, j: int) -> float:
-        a = Zplus[i]
-        b = Zminus[j]
-        if abs(a - b) <= 2 * eps2:
-            return _signum(n_plus - 1 - i - j)
-        return (a + b) / (a - b)
+    # get lengths
+    n_plus = Zplus.shape[0]
+    n_minus = Zminus.shape[0]
 
-    L = [0] * n_plus
-    R = [n_minus - 1] * n_plus
+    # construct L, R as numpy arrays
+    L = np.zeros(n_plus, dtype=int)
+    R = np.full(n_plus, n_minus - 1, dtype=int)
+
     Ltot = 0
     Rtot = n_minus * n_plus
     medc_idx = Rtot // 2
 
     while Rtot - Ltot > n_plus:
 
-        # Construct NumPy arrays
-        A, W, _ = _construct_A_W(L, R, h_kern)
+        # Construct A, W as NumPy arrays
+        try:
+            A, W, _ = _construct_A_W(L, R, Zplus, Zminus, n_plus, eps2)
+        except Exception as ex:
+            print(ex)
+            pdb.set_trace()
+
         h_med = _wmedian(A, W)
 
         Am_eps = eps1 * (eps1 + abs(h_med))
 
-        P, Q = [], []
-        j = 0
-        for i in reversed(range(n_plus)):
-            while j < n_minus and h_kern(i, j) - h_med > Am_eps:
-                j += 1
-            P.append(j - 1)
-        P.reverse()
+        # Preallocate arrays P and Q of length n_plus.
+        P = np.empty(n_plus, dtype=int)
+        Q = np.empty(n_plus, dtype=int)
 
+        # Construct P. Note: We traverse i in reversed order.
+        j = 0
+        for idx in range(n_plus):
+
+            # i goes in reversed order; use reversed indices.
+            i = n_plus - 1 - idx
+
+            # Increase j until the condition is no longer met.
+            while j < n_minus and _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med > Am_eps:
+                j += 1
+
+            # j-1 is our current value for that i.
+            # Store it in P at the reversed index; we will fix the order later.
+            P[idx] = j - 1
+
+        # Reverse P to get the correct order.
+        # This creates a new array with reversed elements.
+        P = P[::-1]
+
+        # Construct Q.
         j = n_minus - 1
         for i in range(n_plus):
-            while j >= 0 and h_kern(i, j) - h_med < -Am_eps:
+            while j >= 0 and _h_kern(i, j, Zplus, Zminus, n_plus, eps2) - h_med < -Am_eps:
                 j -= 1
-            Q.append(j + 1)
+            Q[i] = j + 1
 
-        sumP = sum(P) + len(P)
-        sumQ = sum(Q)
+        # Compute sumP and sumQ.
+        sumP = np.sum(P) + len(P)  # len(P) is n_plus.
+        sumQ = np.sum(Q)
 
         if medc_idx <= sumP - 1:
             R = P
@@ -331,7 +418,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
         else:
             return h_med
 
-    A = _finalize_h_kernel_sweep(L, R, h_kern)
+    A = _finalize_h_kernel_sweep(L, R, Zplus, Zminus, n_plus, eps2)
     return A[medc_idx - Ltot]
 
 
