@@ -180,12 +180,6 @@ def _construct_A_W(L, R, Zplus, Zminus, n_plus, eps2):
     valid_i : np.ndarray
         Indices used for construction.
     """
-    if not isinstance(L, np.ndarray) or not isinstance(R, np.ndarray):
-        raise ValueError("L and R must be np.ndarrays")
-
-    L = np.asarray(L) # TODO: remove
-    R = np.asarray(R) # this too
-
     valid_i = np.where(L <= R)[0]
     L_valid = L[valid_i]
     R_valid = R[valid_i]
@@ -253,8 +247,6 @@ def _finalize_h_kernel_sweep(L, R, Zplus, Zminus, n_plus, eps2):
     A : numpy.ndarray of float
         1-d array of sorted h_kern values in descending order.
     """
-    L = np.asarray(L)
-    R = np.asarray(R)
 
     # Determine total number of h_kern values.
     total_count = int(np.sum(R - L + 1))
