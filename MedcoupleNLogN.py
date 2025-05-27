@@ -155,7 +155,7 @@ def _wmedian(A, W):
     return A_sorted[median_idx]
 
 
-def construct_A_W(L, R, h_kern):
+def _construct_A_W(L, R, h_kern):
     """
     Vectorized construction of A and W as NumPy arrays.
 
@@ -180,12 +180,40 @@ def construct_A_W(L, R, h_kern):
     L_valid = L[valid_i]
     R_valid = R[valid_i]
     mid_indices = (L_valid + R_valid) // 2
+    
+    A = np.empty_like(valid_i, dtype=float)
+    for k in range(valid_i.size):
+        A[k] = h_kern(valid_i[k], mid_indices[k])
 
-    # Vectorized computation using list comprehension due to h_kern's complexity
-    A = np.fromiter((h_kern(i, j) for i, j in zip(valid_i, mid_indices)),
-                    dtype=float, count=len(valid_i))
     W = R_valid - L_valid + 1
     return A, W, valid_i
+
+
+def _finalize_h_kernel_sweep(L, R, h_kern):
+    """
+    Compute the final array A by leveraging NumPy indexing.
+
+    Parameters
+    ----------
+    L : list of left indices
+    R : list of right indices
+    h_kern : function(i, j) -> float
+
+    Returns
+    -------
+    A : list of float
+        Sorted h_kern values in descending order.
+    """
+    L = np.asarray(L)
+    R = np.asarray(R)
+
+    A = []
+    for i in range(len(L)):
+        left = L[i]
+        right = R[i]
+        A.extend(h_kern(i, j) for j in range(left, right + 1))
+
+    return sorted(A, reverse=True)
 
 
 def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
@@ -272,9 +300,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
     while Rtot - Ltot > n_plus:
 
         # Construct NumPy arrays
-        A, W, _ = construct_A_W(L, R, h_kern)
-
-        # Pass NumPy arrays
+        A, W, _ = _construct_A_W(L, R, h_kern)
         h_med = _wmedian(A, W)
 
         Am_eps = eps1 * (eps1 + abs(h_med))
@@ -305,11 +331,7 @@ def _medcouple_nlogn(X, eps1=2**-52, eps2=2**-1022):
         else:
             return h_med
 
-    A = []
-    for i, (left, right) in enumerate(zip(L, R)):
-        A.extend(h_kern(i, j) for j in range(left, right + 1))
-
-    A.sort(reverse=True)
+    A = _finalize_h_kernel_sweep(L, R, h_kern)
     return A[medc_idx - Ltot]
 
 
