@@ -84,7 +84,7 @@ def _medcouple_1d_legacy(y):
 
 def _signum(x):
     r"""
-    Sign function that returns -1, 0, or 1 based on the input.
+    Sign function which returns -1, 0, or 1 based on the input.
 
     Parameters
     ----------
@@ -213,8 +213,6 @@ def _h_kern(index_plus, index_minus, Zplus, Zminus, n_plus, eps2):
     -------
     float
     """
-    if not np.isscalar(index_plus) or not np.isscalar(index_minus):
-        raise ValueError("index_plus and index_minus must be ints")
 
     zp_i = Zplus[index_plus]
     zm_i = Zminus[index_minus]
