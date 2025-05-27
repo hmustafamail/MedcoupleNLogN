@@ -82,28 +82,6 @@ def _medcouple_1d_legacy(y):
     return np.median(h)
 
 
-def _signum(x):
-    r"""
-    Sign function which returns -1, 0, or 1 based on the input.
-
-    Parameters
-    ----------
-    x : int
-        A signed integer value.
-
-    Returns
-    -------
-    int
-        -1 if x < 0, 0 if x == 0, 1 if x > 0.
-
-    Notes
-    -----
-    This function is used in the fast medcouple implementation to
-    handle tie-breaking when two values are numerically close.
-    """
-    return int(x > 0) - int(x < 0)
-
-
 def _wmedian(A, W):
     r"""
     Compute the weighted median of the values in A using the associated weights in W.
@@ -217,8 +195,9 @@ def _h_kern(index_plus, index_minus, Zplus, Zminus, n_plus, eps2):
     zp_i = Zplus[index_plus]
     zm_i = Zminus[index_minus]
     
+    # tie breaker: np.sign functionally equivalent to signum
     if abs(zp_i - zm_i) <= 2 * eps2:
-        return _signum(n_plus - 1 - index_plus - index_minus)
+        return np.sign(n_plus - 1 - index_plus - index_minus)
     return (zp_i + zm_i) / (zp_i - zm_i)
 
 
